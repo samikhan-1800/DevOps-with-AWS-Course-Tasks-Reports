@@ -1,0 +1,2464 @@
+======================================================================
+DEVOPS LAB PROJECT
+THREE-TIER LARAVEL APPLICATION USING DOCKER, DOCKER HUB AND AWS EC2
+======================================================================
+
+GITHUB REPOSITORY:
+https://github.com/samikhan5055/laravel-project.git
+
+ARCHITECTURE:
+1. Web tier: Nginx
+2. Application tier: Laravel + PHP-FPM
+3. Database tier: MySQL 8.4
+
+TOOLS:
+Ubuntu Linux, Git, Docker Engine, Docker Compose, GitHub,
+Docker Hub, AWS EC2, Security Groups, Docker Networks, Docker Volumes.
+
+IMPORTANT:
+- Replace every placeholder with your actual value.
+- Do not commit your .env file, passwords, tokens or private keys.
+- Run commands in the order given.
+- Commands under LOCAL MACHINE run on your Ubuntu computer.
+- Commands under AWS EC2 run after SSH into your EC2 instance.
+- This guide builds images locally and pulls them on EC2.
+- Use an Ubuntu EC2 instance with a public IPv4 address.
+- A 2 GB RAM instance is a reasonable starting point for this lab.
+- Create the two Docker Hub repositories before pushing images.
+- Keep Docker Hub repositories public for the simplest lab deployment,
+  or authenticate to Docker Hub on EC2 if you make them private.
+
+
+======================================================================
+PART 1 — CHECK YOUR LOCAL UBUNTU MACHINE
+======================================================================
+
+Open your Ubuntu terminal.
+
+Check your operating system:
+
+    cat /etc/os-release
+    uname -m
+    whoami
+    pwd
+    git --version
+    docker --version
+    docker compose version
+
+If Docker and Git are already installed, do not reinstall them.
+
+If Docker is unavailable, install Docker Engine using the official
+Docker repository instructions in Part 2.
+
+Make sure Docker is running:
+
+    sudo systemctl status docker
+
+If Docker is installed but stopped:
+
+    sudo systemctl enable --now docker
+
+Test Docker:
+
+    sudo docker run hello-world
+
+If you use Docker Desktop for Linux and its daemon is already running,
+use your existing Docker setup instead of installing a second daemon.
+
+
+======================================================================
+PART 2 — INSTALL DOCKER ENGINE ON UBUNTU
+======================================================================
+
+Use this section only if Docker Engine is not already installed.
+
+Update Ubuntu:
+
+    sudo apt update
+    sudo apt install -y ca-certificates curl gnupg git
+
+Create the keyring directory:
+
+    sudo install -m 0755 -d /etc/apt/keyrings
+
+Download the official Docker signing key:
+
+    sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+      -o /etc/apt/keyrings/docker.asc
+
+Set its permissions:
+
+    sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+Add the official Docker repository:
+
+    sudo tee /etc/apt/sources.list.d/docker.sources > /dev/null <<EOF
+    Types: deb
+    URIs: https://download.docker.com/linux/ubuntu
+    Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
+    Components: stable
+    Signed-By: /etc/apt/keyrings/docker.asc
+    Architectures: $(dpkg --print-architecture)
+    EOF
+
+Update package lists:
+
+    sudo apt update
+
+Install Docker Engine, Buildx and Compose:
+
+    sudo apt install -y docker-ce docker-ce-cli containerd.io \
+      docker-buildx-plugin docker-compose-plugin
+
+Start Docker:
+
+    sudo systemctl enable --now docker
+
+Verify installation:
+
+    sudo docker --version
+    sudo docker compose version
+    sudo docker buildx version
+    sudo docker run hello-world
+
+For this lab, use the Docker Compose v2 command:
+
+    docker compose
+
+Do not confuse it with the older command:
+
+    docker-compose
+
+
+======================================================================
+PART 3 — CLONE THE GITHUB REPOSITORY
+======================================================================
+
+Go to your home directory:
+
+    cd ~
+
+Clone the project:
+
+    git clone https://github.com/samikhan5055/laravel-project.git
+
+Open the repository:
+
+    cd laravel-project
+
+Check the current branch:
+
+    git branch
+
+Check the working tree:
+
+    git status
+
+Check the files:
+
+    ls -la
+
+Check the Laravel version requirement:
+
+    cat composer.json
+
+Check the frontend package configuration:
+
+    cat package.json
+
+A public GitHub repository can be cloned without logging in.
+You will need GitHub authentication when pushing changes.
+
+If you have already cloned the repository, do not clone it again.
+Use cd to open your existing project directory.
+
+
+======================================================================
+PART 4 — CREATE THE THREE-TIER DOCKER ARCHITECTURE
+======================================================================
+
+The project will contain the following additional files:
+
+laravel-project/
+|
+|-- Dockerfile
+|-- .dockerignore
+|-- compose.yaml
+|-- .env
+|
+|-- docker/
+|   |
+|   |-- nginx/
+|       |
+|       |-- default.conf
+|
+|-- app/
+|-- bootstrap/
+|-- config/
+|-- database/
+|-- public/
+|-- resources/
+|-- routes/
+|-- storage/
+|-- composer.json
+|-- composer.lock
+|-- package.json
+|-- artisan
+|-- README.md
+|-- Jenkinsfile
+
+We will create four tracked configuration files:
+1. Dockerfile
+2. .dockerignore
+3. compose.yaml
+4. docker/nginx/default.conf
+
+The .env file will contain runtime settings and secrets.
+It must remain local and must not be pushed to GitHub.
+
+
+======================================================================
+PART 5 — CREATE THE DOCKERFILE
+======================================================================
+
+From inside the laravel-project directory, run:
+
+    nano Dockerfile
+
+Replace the file contents with the following:
+
+----------------------------------------------------------------------
+DOCKERFILE CONTENTS
+----------------------------------------------------------------------
+
+    # Stage 1: Build Laravel frontend assets.
+    FROM node:22-alpine AS assets
+
+    WORKDIR /src
+
+    COPY package.json ./
+
+    RUN npm install
+
+    COPY . .
+
+    RUN npm run build
+
+
+    # Stage 2: Build the Laravel PHP application.
+    FROM php:8.4-fpm-bookworm AS app
+
+    RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        unzip \
+        libcurl4-openssl-dev \
+        libicu-dev \
+        libonig-dev \
+        libxml2-dev \
+        libzip-dev \
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libfreetype6-dev \
+        && docker-php-ext-configure gd \
+            --with-freetype \
+            --with-jpeg \
+        && docker-php-ext-install -j"$(nproc)" \
+            bcmath \
+            curl \
+            exif \
+            gd \
+            intl \
+            mbstring \
+            opcache \
+            pcntl \
+            pdo_mysql \
+            zip \
+        && rm -rf /var/lib/apt/lists/*
+
+    COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+    WORKDIR /var/www/html
+
+    COPY . .
+
+    RUN composer install \
+        --no-dev \
+        --no-interaction \
+        --prefer-dist \
+        --optimize-autoloader \
+        --no-scripts
+
+    COPY --from=assets /src/public/build /var/www/html/public/build
+
+    RUN mkdir -p \
+        storage/framework/cache \
+        storage/framework/sessions \
+        storage/framework/views \
+        storage/logs \
+        bootstrap/cache \
+        && php artisan package:discover --ansi \
+        && chown -R www-data:www-data storage bootstrap/cache \
+        && chmod -R ug+rwX storage bootstrap/cache
+
+    EXPOSE 9000
+
+    CMD ["php-fpm"]
+
+
+    # Stage 3: Build the separate Nginx web-server image.
+    FROM nginx:1.28-alpine AS web
+
+    COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+
+    COPY public/ /var/www/html/public/
+
+    COPY --from=assets /src/public/build /var/www/html/public/build
+
+----------------------------------------------------------------------
+
+Save the file:
+Ctrl + O
+Enter
+Ctrl + X
+
+WHAT EACH STAGE DOES:
+
+Stage 1 — assets:
+- Uses Node.js to install frontend dependencies.
+- Builds CSS and JavaScript using Vite.
+- Places generated assets under public/build.
+
+Stage 2 — app:
+- Uses PHP 8.4 with PHP-FPM.
+- Installs required PHP extensions.
+- Installs Laravel's production Composer dependencies.
+- Copies the built frontend assets into the Laravel application.
+- Prepares writable Laravel storage directories.
+- Starts PHP-FPM on port 9000.
+
+Stage 3 — web:
+- Uses a separate Nginx image.
+- Copies the Nginx configuration.
+- Copies public Laravel files and built frontend assets.
+- Receives HTTP requests and forwards PHP requests to the app service.
+
+The Dockerfile has two named build targets: app and web.
+Docker will create separate images from these targets.
+
+
+======================================================================
+PART 6 — CREATE .dockerignore
+======================================================================
+
+Run:
+
+    nano .dockerignore
+
+Paste:
+
+    .git
+    .github
+    .env
+    .env.*
+    !.env.example
+    node_modules
+    vendor
+    .idea
+    .vscode
+    .phpunit.cache
+    coverage
+    storage/logs/*
+    storage/framework/cache/*
+    storage/framework/sessions/*
+    storage/framework/views/*
+    bootstrap/cache/*
+    database/*.sqlite
+    database/*.sqlite-*
+
+Save and exit.
+
+WHY THIS FILE IS IMPORTANT:
+
+Docker sends the build context to the Docker builder.
+
+The .dockerignore file prevents unnecessary files from entering
+that context, including Git history, local dependencies and secrets.
+
+Never remove the .env exclusion just to make the application work.
+
+
+======================================================================
+PART 7 — CREATE THE NGINX CONFIGURATION
+======================================================================
+
+Create the configuration directory:
+
+    mkdir -p docker/nginx
+
+Create the file:
+
+    nano docker/nginx/default.conf
+
+Paste the following:
+
+----------------------------------------------------------------------
+NGINX CONFIGURATION
+----------------------------------------------------------------------
+
+    server {
+        listen 80;
+        server_name _;
+
+        root /var/www/html/public;
+        index index.php index.html;
+
+        charset utf-8;
+
+        location / {
+            try_files $uri $uri/ /index.php?$query_string;
+        }
+
+        location = /favicon.ico {
+            access_log off;
+            log_not_found off;
+        }
+
+        location = /robots.txt {
+            access_log off;
+            log_not_found off;
+        }
+
+        location ~ \.php$ {
+            try_files $uri =404;
+
+            include fastcgi_params;
+
+            fastcgi_pass app:9000;
+
+            fastcgi_param SCRIPT_FILENAME \
+                /var/www/html/public$fastcgi_script_name;
+
+            fastcgi_param DOCUMENT_ROOT /var/www/html/public;
+        }
+
+        location ~ /\.(?!well-known).* {
+            deny all;
+        }
+
+        location ~* \.(css|js|jpg|jpeg|png|gif|ico|svg|woff2?)$ {
+            expires 7d;
+            access_log off;
+            try_files $uri =404;
+        }
+    }
+
+----------------------------------------------------------------------
+
+IMPORTANT:
+The backslash shown at the end of SCRIPT_FILENAME above is intended
+to continue the value visually in this guide. In the actual Nginx
+configuration, write that directive on ONE line:
+
+    fastcgi_param SCRIPT_FILENAME /var/www/html/public$fastcgi_script_name;
+
+The complete directive must not contain a literal backslash.
+
+Save and exit.
+
+HOW NGINX COMMUNICATES WITH PHP-FPM:
+
+    fastcgi_pass app:9000;
+
+Here:
+- app is the Docker Compose service name.
+- 9000 is PHP-FPM's internal listening port.
+- Docker provides service-name DNS on the shared network.
+
+Do not use localhost:9000 in the Nginx container.
+Localhost inside Nginx refers to the Nginx container itself.
+
+
+======================================================================
+PART 8 — CREATE THE DOCKER COMPOSE FILE
+======================================================================
+
+Run:
+
+    nano compose.yaml
+
+Paste:
+
+----------------------------------------------------------------------
+COMPOSE.YAML CONTENTS
+----------------------------------------------------------------------
+
+    services:
+
+      db:
+        image: mysql:8.4
+        restart: unless-stopped
+
+        environment:
+          MYSQL_DATABASE: "${DB_DATABASE}"
+          MYSQL_USER: "${DB_USERNAME}"
+          MYSQL_PASSWORD: "${DB_PASSWORD}"
+          MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+
+        volumes:
+          - mysql_data:/var/lib/mysql
+
+        networks:
+          - backend
+
+        healthcheck:
+          test:
+            - CMD-SHELL
+            - 'mysqladmin ping -h 127.0.0.1 -uroot -p"$${MYSQL_ROOT_PASSWORD}" --silent'
+          interval: 10s
+          timeout: 5s
+          retries: 12
+          start_period: 30s
+
+
+      app:
+        image: "${DOCKERHUB_USERNAME}/laravel-app:1.0"
+        restart: unless-stopped
+
+        environment:
+          APP_NAME: "${APP_NAME:-Laravel}"
+          APP_ENV: "${APP_ENV:-production}"
+          APP_KEY: "${APP_KEY}"
+          APP_DEBUG: "${APP_DEBUG:-false}"
+          APP_URL: "${APP_URL}"
+
+          LOG_CHANNEL: "${LOG_CHANNEL:-stack}"
+          LOG_LEVEL: "${LOG_LEVEL:-info}"
+
+          DB_CONNECTION: mysql
+          DB_HOST: db
+          DB_PORT: 3306
+          DB_DATABASE: "${DB_DATABASE}"
+          DB_USERNAME: "${DB_USERNAME}"
+          DB_PASSWORD: "${DB_PASSWORD}"
+
+          SESSION_DRIVER: file
+          CACHE_STORE: file
+          QUEUE_CONNECTION: sync
+
+        volumes:
+          - laravel_storage:/var/www/html/storage
+
+        networks:
+          - frontend
+          - backend
+
+        depends_on:
+          db:
+            condition: service_healthy
+
+
+      web:
+        image: "${DOCKERHUB_USERNAME}/laravel-web:1.0"
+        restart: unless-stopped
+
+        ports:
+          - "80:80"
+
+        networks:
+          - frontend
+
+        depends_on:
+          - app
+
+
+    networks:
+      frontend:
+        driver: bridge
+
+      backend:
+        driver: bridge
+        internal: true
+
+
+    volumes:
+      mysql_data:
+      laravel_storage:
+
+----------------------------------------------------------------------
+
+Save and exit.
+
+IMPORTANT NETWORK DESIGN:
+
+Web container:
+- Connected to frontend.
+- Receives public HTTP traffic on port 80.
+- Can reach the app container.
+
+App container:
+- Connected to frontend and backend.
+- Receives FastCGI requests from Nginx.
+- Connects to MySQL using hostname db and port 3306.
+
+Database container:
+- Connected only to backend.
+- Has no published host port.
+- Is not directly exposed to the public internet.
+
+The internal backend network isolates the database from external
+network access. The app can still connect to the database because
+both are attached to that network.
+
+The Compose file publishes only port 80.
+It does not publish ports 3306 or 9000.
+
+Docker Compose automatically creates the declared networks and
+volumes when you start the project.
+
+
+======================================================================
+PART 9 — CREATE THE ENVIRONMENT FILE
+======================================================================
+
+Create the file:
+
+    cp .env.example .env
+    nano .env
+
+Update the relevant existing entries. Do not blindly duplicate
+variables if they already exist in the file.
+
+Use these values as a template:
+
+    APP_NAME=Laravel
+    APP_ENV=production
+    APP_KEY=
+    APP_DEBUG=false
+    APP_URL=http://YOUR_EC2_PUBLIC_IP
+
+    LOG_CHANNEL=stack
+    LOG_LEVEL=info
+
+    DB_CONNECTION=mysql
+    DB_HOST=db
+    DB_PORT=3306
+    DB_DATABASE=laravel
+    DB_USERNAME=laravel
+    DB_PASSWORD=REPLACE_WITH_A_STRONG_DB_PASSWORD
+
+    MYSQL_ROOT_PASSWORD=REPLACE_WITH_A_DIFFERENT_STRONG_PASSWORD
+
+    DOCKERHUB_USERNAME=YOUR_DOCKERHUB_USERNAME
+
+Replace:
+- YOUR_EC2_PUBLIC_IP with your EC2 public IPv4 address.
+- YOUR_DOCKERHUB_USERNAME with your Docker Hub username.
+- Both password placeholders with strong, different passwords.
+
+APP_KEY is generated later.
+
+For APP_URL, you can temporarily use:
+
+    APP_URL=http://localhost
+
+After the EC2 instance is created, update it to:
+
+    APP_URL=http://YOUR_EC2_PUBLIC_IP
+
+IMPORTANT:
+The example .env file in the repository defaults to SQLite and
+database-backed sessions, cache and queues. This deployment explicitly
+uses MySQL and file/sync drivers so it does not require a separate
+Redis container or a pre-existing sessions/cache database table.
+
+Do not use SQLite settings with this MySQL deployment.
+
+Save and exit.
+
+Verify that Git ignores .env:
+
+    git check-ignore .env
+
+Expected output:
+
+    .env
+
+If it does not print .env, check your .gitignore and add this entry:
+
+    .env
+
+Never run git add -f .env.
+
+
+======================================================================
+PART 10 — VALIDATE THE CONFIGURATION
+======================================================================
+
+Check the repository files:
+
+    ls -la
+    ls -la docker/nginx
+
+Check the Dockerfile stages:
+
+    grep -n "^FROM" Dockerfile
+
+Expected stages:
+- assets
+- app
+- web
+
+Check the Nginx configuration:
+
+    cat docker/nginx/default.conf
+
+Check the Compose configuration:
+
+    docker compose config --quiet
+
+If this command reports an error, fix it before building images.
+
+Common problems:
+- Incorrect YAML indentation.
+- Missing .env variables.
+- Missing Dockerfile.
+- Incorrect Nginx configuration path.
+- Invalid quote marks or copy/paste characters.
+
+Validate Nginx after building the web image:
+
+    docker compose run --rm --no-deps web nginx -t
+
+The Nginx test should report that the configuration syntax is okay
+and the configuration test is successful.
+
+
+======================================================================
+PART 11 — LOG IN TO DOCKER HUB
+======================================================================
+
+First, open Docker Hub in your browser:
+
+    https://hub.docker.com/
+
+Sign in to your account.
+
+Create two repositories:
+1. laravel-app
+2. laravel-web
+
+For the simplest lab, make both repositories public.
+
+Back in the Ubuntu terminal, set the username:
+
+    export DOCKERHUB_USERNAME=YOUR_DOCKERHUB_USERNAME
+
+Replace the placeholder with your real Docker Hub username.
+
+Log in:
+
+    docker login -u "$DOCKERHUB_USERNAME"
+
+Enter your Docker Hub access token when prompted if requested.
+
+Do not put the access token directly in the command line.
+Do not save it in Dockerfile, compose.yaml, GitHub or .env.
+
+Verify the images' destination names:
+
+    echo "$DOCKERHUB_USERNAME/laravel-app:1.0"
+    echo "$DOCKERHUB_USERNAME/laravel-web:1.0"
+
+
+======================================================================
+PART 12 — BUILD THE LARAVEL APPLICATION IMAGE
+======================================================================
+
+Run from the root of laravel-project:
+
+    docker build \
+      --platform linux/amd64 \
+      --pull \
+      --target app \
+      -t "$DOCKERHUB_USERNAME/laravel-app:1.0" \
+      .
+
+WHAT THIS DOES:
+
+- Downloads the required base images if needed.
+- Builds the Vite assets.
+- Installs PHP extensions.
+- Installs production Composer dependencies.
+- Prepares Laravel's writable directories.
+- Creates the application image.
+
+Check the image:
+
+    docker images
+
+Inspect the image:
+
+    docker image inspect "$DOCKERHUB_USERNAME/laravel-app:1.0"
+
+If the build fails:
+
+    docker build \
+      --progress=plain \
+      --no-cache \
+      --platform linux/amd64 \
+      --target app \
+      -t "$DOCKERHUB_USERNAME/laravel-app:1.0" \
+      .
+
+Use --no-cache only when necessary because it repeats the build.
+
+Common errors:
+- Composer dependency installation failed.
+- A required PHP extension is missing.
+- npm install failed.
+- Vite could not compile the frontend.
+- Insufficient disk space.
+- Network connection problems.
+
+Do not continue until the app image builds successfully.
+
+
+======================================================================
+PART 13 — BUILD THE NGINX WEB IMAGE
+======================================================================
+
+Run:
+
+    docker build \
+      --platform linux/amd64 \
+      --pull \
+      --target web \
+      -t "$DOCKERHUB_USERNAME/laravel-web:1.0" \
+      .
+
+This builds the separate Nginx image.
+
+Inspect both images:
+
+    docker images
+
+Expected image names:
+
+    YOUR_DOCKERHUB_USERNAME/laravel-app:1.0
+    YOUR_DOCKERHUB_USERNAME/laravel-web:1.0
+
+Check that the Nginx configuration is included:
+
+    docker run --rm \
+      "$DOCKERHUB_USERNAME/laravel-web:1.0" \
+      nginx -t
+
+The test should succeed.
+
+The app image and web image are separate containers at runtime,
+even though they are built from one multi-stage Dockerfile.
+
+
+======================================================================
+PART 14 — CREATE THE LARAVEL APPLICATION KEY
+======================================================================
+
+The app image has been built. Generate a key without trying to
+write into the image's filesystem:
+
+    docker compose run --no-deps --rm app php artisan key:generate --show
+
+The command prints a value beginning with:
+
+    base64:
+
+Copy the complete generated value.
+
+Edit the local .env file:
+
+    nano .env
+
+Set APP_KEY to the generated value, for example:
+
+    APP_KEY=base64:PASTE_THE_COMPLETE_GENERATED_VALUE_HERE
+
+Do not use the example text literally.
+
+Save and exit.
+
+This key encrypts Laravel application data. Keep it secret and
+preserve the same key for the lifetime of this deployed application.
+
+Do not generate a new key every time the containers restart.
+
+
+======================================================================
+PART 15 — TEST THE THREE CONTAINERS LOCALLY
+======================================================================
+
+Start the application:
+
+    docker compose up -d
+
+This creates:
+- db container
+- app container
+- web container
+- frontend network
+- backend network
+- mysql_data volume
+- laravel_storage volume
+
+Check running containers:
+
+    docker compose ps
+
+View all project containers:
+
+    docker ps
+
+View startup logs:
+
+    docker compose logs --tail=100
+
+Follow all logs:
+
+    docker compose logs -f
+
+Exit log-following mode with Ctrl+C.
+This stops viewing logs; it does not stop the containers.
+
+Check the database:
+
+    docker compose ps db
+
+Wait until the database is healthy.
+
+Run Laravel migrations:
+
+    docker compose exec app php artisan migrate --force
+
+Clear cached Laravel configuration:
+
+    docker compose exec app php artisan optimize:clear
+
+Check the Laravel version:
+
+    docker compose exec app php artisan --version
+
+Check registered routes:
+
+    docker compose exec app php artisan route:list
+
+Check PHP-FPM processes:
+
+    docker compose exec app ps aux
+
+Check the Nginx configuration in the running web container:
+
+    docker compose exec web nginx -t
+
+Test the local web server:
+
+    curl -I http://localhost
+
+Test the response body:
+
+    curl http://localhost
+
+Open a browser on your Ubuntu computer:
+
+    http://localhost
+
+You should see the Laravel welcome page if the repository's default
+welcome route is still configured.
+
+If your project has custom routes, the response may be different.
+
+
+======================================================================
+PART 16 — TEST CONTAINER-TO-CONTAINER NETWORKING
+======================================================================
+
+First, list the networks:
+
+    docker network ls
+
+Find the network names:
+
+    docker compose ps
+
+Inspect the frontend network:
+
+    docker network inspect laravel-project_frontend
+
+Inspect the backend network:
+
+    docker network inspect laravel-project_backend
+
+Compose network names usually include the project directory name.
+Use the actual names shown by docker network ls.
+
+Check the Nginx container's network:
+
+    docker inspect "$(docker compose ps -q web)"
+
+Check the app container's network:
+
+    docker inspect "$(docker compose ps -q app)"
+
+Check the database container's network:
+
+    docker inspect "$(docker compose ps -q db)"
+
+EXPECTED NETWORK MEMBERSHIP:
+
+web:
+    frontend
+
+app:
+    frontend
+    backend
+
+db:
+    backend
+
+Test the app's ability to resolve the database service:
+
+    docker compose exec app php -r \
+      '$ip = gethostbyname("db"); echo $ip . PHP_EOL;'
+
+The result should be an IP address, not the literal string db.
+
+Check the database connection from Laravel:
+
+    docker compose exec app php artisan migrate:status
+
+If migrations can be listed successfully, Laravel can communicate
+with the database and access its migration table.
+
+Check the MySQL server from inside the database container:
+
+    docker compose exec db sh -lc \
+      'mysqladmin ping -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --silent'
+
+Expected result:
+
+    mysqld is alive
+
+IMPORTANT:
+Docker service names should be used instead of hardcoded container IPs.
+
+Use:
+
+    DB_HOST=db
+
+Do not use:
+
+    DB_HOST=localhost
+
+Inside the app container, localhost points to the app container,
+not the database container.
+
+
+======================================================================
+PART 17 — TEST DOCKER VOLUME PERSISTENCE
+======================================================================
+
+A Docker volume stores data outside the container's writable layer.
+
+The database uses:
+
+    mysql_data:/var/lib/mysql
+
+Laravel storage uses:
+
+    laravel_storage:/var/www/html/storage
+
+A. CHECK THE VOLUMES
+
+Run:
+
+    docker volume ls
+
+Inspect the database volume:
+
+    docker volume inspect laravel-project_mysql_data
+
+Inspect the Laravel storage volume:
+
+    docker volume inspect laravel-project_laravel_storage
+
+The exact volume names depend on the Compose project name.
+
+B. TEST LARAVEL STORAGE PERSISTENCE
+
+Create a test file inside the mounted storage directory:
+
+    docker compose exec app sh -lc \
+      'date > storage/app/persistence-test.txt'
+
+Read the file:
+
+    docker compose exec app \
+      cat storage/app/persistence-test.txt
+
+Recreate the app container:
+
+    docker compose up -d --force-recreate app
+
+Read the file again:
+
+    docker compose exec app \
+      cat storage/app/persistence-test.txt
+
+The file should still exist.
+
+WHY?
+
+The file lives in the named volume, not only in the app container's
+writable layer.
+
+C. TEST DATABASE VOLUME PERSISTENCE
+
+Create a test database:
+
+    docker compose exec db sh -lc \
+      'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE persistence_test;"'
+
+Verify that it exists:
+
+    docker compose exec db sh -lc \
+      'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SHOW DATABASES;"'
+
+Recreate the database container:
+
+    docker compose up -d --force-recreate db
+
+Wait for MySQL to become healthy:
+
+    docker compose ps
+
+Verify the test database still exists:
+
+    docker compose exec db sh -lc \
+      'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SHOW DATABASES;"'
+
+The persistence_test database should still be present.
+
+WHY?
+
+The MySQL files are stored in the mysql_data named volume.
+Recreating the database container does not remove that volume.
+
+D. IMPORTANT VOLUME COMMANDS
+
+List volumes:
+
+    docker volume ls
+
+Inspect volume metadata:
+
+    docker volume inspect VOLUME_NAME
+
+Remove an unused volume:
+
+    docker volume rm VOLUME_NAME
+
+WARNING:
+Do not delete your persistent database volume during normal deployment.
+
+This command removes project containers, networks and other
+Compose-managed resources, but keeps named volumes:
+
+    docker compose down
+
+This command also deletes the named volumes and their stored data:
+
+    docker compose down -v
+
+Never use docker compose down -v if you need to preserve the database
+or Laravel storage data.
+
+
+======================================================================
+PART 18 — TEST RESTART AND RECOVERY
+======================================================================
+
+Restart the project:
+
+    docker compose restart
+
+Check the status:
+
+    docker compose ps
+
+Check the website:
+
+    curl -I http://localhost
+
+Stop the project:
+
+    docker compose stop
+
+Start it again:
+
+    docker compose start
+
+Check the website again:
+
+    curl -I http://localhost
+
+Recreate the app container:
+
+    docker compose up -d --force-recreate app
+
+Check the logs:
+
+    docker compose logs --tail=100 app
+
+Verify the database volume and storage volume again.
+
+Do not use docker compose down -v as a normal restart command.
+
+
+======================================================================
+PART 19 — PUSH THE DOCKER IMAGES TO DOCKER HUB
+======================================================================
+
+Confirm that you are logged in:
+
+    docker login -u "$DOCKERHUB_USERNAME"
+
+Push the Laravel app image:
+
+    docker push "$DOCKERHUB_USERNAME/laravel-app:1.0"
+
+Push the Nginx web image:
+
+    docker push "$DOCKERHUB_USERNAME/laravel-web:1.0"
+
+Verify both images in Docker Hub using your browser:
+
+    https://hub.docker.com/
+
+Open the laravel-app repository and check tag 1.0.
+
+Open the laravel-web repository and check tag 1.0.
+
+The images now exist in Docker Hub and can be downloaded to EC2.
+
+IMPORTANT:
+If Docker Hub reports that the repository does not exist, create
+the repository in Docker Hub and retry the push.
+
+If Docker Hub reports denied access, verify the username, repository
+name, access token and repository permissions.
+
+Do not upload your .env file as a Docker image layer.
+
+
+======================================================================
+PART 20 — COMMIT DOCKER FILES TO GITHUB
+======================================================================
+
+Check which files changed:
+
+    git status
+
+Verify .env is ignored:
+
+    git check-ignore .env
+
+Add only the required project files:
+
+    git add Dockerfile
+    git add .dockerignore
+    git add compose.yaml
+    git add docker/nginx/default.conf
+
+Review the staged changes:
+
+    git diff --cached
+
+Check that .env is not staged:
+
+    git status
+
+Commit the changes:
+
+    git commit -m "Add three-tier Laravel Docker deployment"
+
+Before pushing, authenticate with GitHub if you have not already
+configured Git authentication.
+
+You can use GitHub CLI if it is installed:
+
+    gh auth login
+
+Otherwise, use your configured Git credential manager or GitHub
+personal access token when Git requests authentication.
+
+Push to the main branch:
+
+    git push origin main
+
+If your current branch is not main, check the branch first:
+
+    git branch --show-current
+
+Push to the appropriate branch instead.
+
+Open the repository in your browser:
+
+    https://github.com/samikhan5055/laravel-project
+
+Verify that these files are visible:
+- Dockerfile
+- .dockerignore
+- compose.yaml
+- docker/nginx/default.conf
+
+The .env file must NOT be visible in GitHub.
+
+If Git reports a rejected push, do not force-push blindly.
+Inspect the error and reconcile the branch history first.
+
+
+======================================================================
+PART 21 — CREATE THE AWS EC2 INSTANCE
+======================================================================
+
+Open the AWS Management Console:
+
+    https://console.aws.amazon.com/
+
+Navigate to:
+
+    EC2 -> Instances -> Launch instances
+
+Use these settings for the lab:
+
+Name:
+    laravel-three-tier
+
+AMI:
+    Ubuntu Server 24.04 LTS, 64-bit x86
+
+Instance type:
+    Prefer a 2 GB RAM or larger instance for this three-container
+    application. Check current instance prices before launching.
+
+Key pair:
+    Create or select an SSH key pair and download the private key
+    securely.
+
+Storage:
+    Allocate sufficient disk space, for example 20 GiB, and verify
+    that the selected volume type and size fit your budget.
+
+Network:
+    Use a VPC and subnet with a route to an Internet Gateway.
+    Assign a public IPv4 address if you want direct browser access.
+
+Security group:
+    Create or select a security group for this deployment.
+
+Launch the instance.
+
+Wait until:
+- Instance state is Running.
+- Instance status checks pass.
+- A public IPv4 address is available.
+
+Copy the public IPv4 address.
+
+Example placeholder:
+
+    YOUR_EC2_PUBLIC_IP
+
+
+======================================================================
+PART 22 — CONFIGURE AWS SECURITY GROUP RULES
+======================================================================
+
+Open:
+
+    EC2 -> Instances -> Select instance -> Security
+
+Click the security group link.
+
+Open:
+
+    Inbound rules -> Edit inbound rules
+
+Configure the following rules:
+
+RULE 1:
+Type:
+    SSH
+
+Protocol:
+    TCP
+
+Port:
+    22
+
+Source:
+    My IP
+
+Purpose:
+    SSH access from your own public IP address.
+
+RULE 2:
+Type:
+    HTTP
+
+Protocol:
+    TCP
+
+Port:
+    80
+
+Source:
+    0.0.0.0/0
+
+Purpose:
+    Allow browsers to access the public Laravel website over HTTP.
+
+OPTIONAL RULE 3:
+Type:
+    HTTPS
+
+Protocol:
+    TCP
+
+Port:
+    443
+
+Source:
+    0.0.0.0/0
+
+Purpose:
+    Use only after you configure HTTPS.
+
+Do NOT add public inbound rules for:
+
+    3306  MySQL
+    9000  PHP-FPM
+
+The database and PHP-FPM ports are internal Docker service ports.
+They do not need public access.
+
+AWS Security Groups act as virtual firewalls. Only allow the ports
+required by your application.
+
+For an internet-facing application, HTTP is not encrypted.
+Use HTTPS for real deployments and protect all application secrets.
+
+
+======================================================================
+PART 23 — CONNECT TO AWS EC2 USING SSH
+======================================================================
+
+On your local Ubuntu computer, navigate to the folder containing
+your downloaded EC2 private key.
+
+For example:
+
+    cd ~/Downloads
+
+Set restrictive permissions on the key:
+
+    chmod 400 your-key.pem
+
+Connect to the instance:
+
+    ssh -i your-key.pem ubuntu@YOUR_EC2_PUBLIC_IP
+
+Replace:
+- your-key.pem with your actual key filename.
+- YOUR_EC2_PUBLIC_IP with the actual public IPv4 address.
+
+The default SSH username for a standard Ubuntu EC2 AMI is usually:
+
+    ubuntu
+
+After connecting, verify the machine:
+
+    whoami
+    hostname
+    pwd
+    cat /etc/os-release
+    ip addr
+    df -h
+    free -h
+
+You are now executing commands on AWS EC2, not on your local machine.
+
+
+======================================================================
+PART 24 — INSTALL DOCKER ON AWS EC2
+======================================================================
+
+Run these commands inside the EC2 SSH session.
+
+Update packages:
+
+    sudo apt update
+
+Install prerequisites:
+
+    sudo apt install -y ca-certificates curl gnupg git
+
+Create the keyring directory:
+
+    sudo install -m 0755 -d /etc/apt/keyrings
+
+Download the official Docker signing key:
+
+    sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+      -o /etc/apt/keyrings/docker.asc
+
+Set permissions:
+
+    sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+Add the official repository:
+
+    sudo tee /etc/apt/sources.list.d/docker.sources > /dev/null <<EOF
+    Types: deb
+    URIs: https://download.docker.com/linux/ubuntu
+    Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
+    Components: stable
+    Signed-By: /etc/apt/keyrings/docker.asc
+    Architectures: $(dpkg --print-architecture)
+    EOF
+
+Refresh package indexes:
+
+    sudo apt update
+
+Install Docker and Compose:
+
+    sudo apt install -y docker-ce docker-ce-cli containerd.io \
+      docker-buildx-plugin docker-compose-plugin
+
+Enable Docker:
+
+    sudo systemctl enable --now docker
+
+Check the service:
+
+    sudo systemctl status docker
+
+Verify the installation:
+
+    sudo docker --version
+    sudo docker compose version
+    sudo docker run hello-world
+
+The EC2 machine now has Docker Engine and the Compose plugin.
+
+
+======================================================================
+PART 25 — CLONE THE PROJECT ON AWS EC2
+======================================================================
+
+Create a deployment directory:
+
+    mkdir -p ~/deployments
+    cd ~/deployments
+
+Clone the GitHub repository:
+
+    git clone https://github.com/samikhan5055/laravel-project.git
+
+Open the project:
+
+    cd ~/deployments/laravel-project
+
+Check files:
+
+    ls -la
+    ls -la docker/nginx
+
+Check the Docker Compose configuration:
+
+    sudo docker compose config --quiet
+
+At this stage, .env has not yet been created on EC2.
+
+Create it:
+
+    cp .env.example .env
+    nano .env
+
+Set the following values:
+
+    APP_NAME=Laravel
+    APP_ENV=production
+    APP_KEY=
+    APP_DEBUG=false
+    APP_URL=http://YOUR_EC2_PUBLIC_IP
+
+    LOG_CHANNEL=stack
+    LOG_LEVEL=info
+
+    DB_CONNECTION=mysql
+    DB_HOST=db
+    DB_PORT=3306
+    DB_DATABASE=laravel
+    DB_USERNAME=laravel
+    DB_PASSWORD=YOUR_STRONG_DB_PASSWORD
+
+    MYSQL_ROOT_PASSWORD=YOUR_DIFFERENT_STRONG_ROOT_PASSWORD
+
+    DOCKERHUB_USERNAME=YOUR_DOCKERHUB_USERNAME
+
+Use the SAME database and Docker Hub credentials that correspond
+to your intended deployment configuration.
+
+Use new, strong passwords for this EC2 environment.
+
+Replace APP_URL with the actual public IP address.
+
+Save and exit.
+
+Set restrictive permissions on .env:
+
+    chmod 600 .env
+
+Verify that .env is ignored by Git:
+
+    git check-ignore .env
+
+
+======================================================================
+PART 26 — PULL DOCKER HUB IMAGES ON AWS
+======================================================================
+
+If the two Docker Hub repositories are public, Docker can pull them
+without logging in. If they are private, log in using a Docker Hub
+access token:
+
+    sudo docker login -u YOUR_DOCKERHUB_USERNAME
+
+Pull the MySQL image:
+
+    sudo docker pull mysql:8.4
+
+Pull the Laravel application image:
+
+    sudo docker compose pull app
+
+Pull the Nginx web image:
+
+    sudo docker compose pull web
+
+Check downloaded images:
+
+    sudo docker images
+
+You should see:
+
+    YOUR_DOCKERHUB_USERNAME/laravel-app:1.0
+    YOUR_DOCKERHUB_USERNAME/laravel-web:1.0
+    mysql:8.4
+
+If image pulls fail:
+- Check the Docker Hub username in .env.
+- Check that both repositories exist.
+- Check that the tag 1.0 exists.
+- Check whether the repositories are public or private.
+- Verify EC2 has internet connectivity.
+
+
+======================================================================
+PART 27 — GENERATE APP_KEY ON EC2
+======================================================================
+
+Run:
+
+    sudo docker compose run --no-deps --rm app \
+      php artisan key:generate --show
+
+Copy the complete generated base64 value.
+
+Open the EC2 environment file:
+
+    nano .env
+
+Set:
+
+    APP_KEY=base64:PASTE_THE_COMPLETE_GENERATED_VALUE_HERE
+
+Save the file.
+
+Keep APP_KEY unchanged during future restarts and image updates.
+
+This EC2 key is independent of the key used during your local test.
+
+
+======================================================================
+PART 28 — START THE THREE-TIER APPLICATION ON EC2
+======================================================================
+
+Validate the Compose configuration:
+
+    sudo docker compose config --quiet
+
+Pull the images again if required:
+
+    sudo docker compose pull
+
+Start all three services:
+
+    sudo docker compose up -d
+
+Check running containers:
+
+    sudo docker compose ps
+
+Check Docker containers:
+
+    sudo docker ps
+
+Wait for MySQL to become healthy.
+
+Check the database logs:
+
+    sudo docker compose logs --tail=100 db
+
+Check the application logs:
+
+    sudo docker compose logs --tail=100 app
+
+Check Nginx logs:
+
+    sudo docker compose logs --tail=100 web
+
+Follow all logs:
+
+    sudo docker compose logs -f
+
+Press Ctrl+C to stop following the logs.
+
+Run database migrations:
+
+    sudo docker compose exec app php artisan migrate --force
+
+Clear application caches:
+
+    sudo docker compose exec app php artisan optimize:clear
+
+Check the application version:
+
+    sudo docker compose exec app php artisan --version
+
+Check routes:
+
+    sudo docker compose exec app php artisan route:list
+
+Verify the services:
+
+    sudo docker compose ps
+
+
+======================================================================
+PART 29 — TEST THE WEBSITE IN YOUR BROWSER
+======================================================================
+
+On your LOCAL COMPUTER, open a browser.
+
+Enter:
+
+    http://YOUR_EC2_PUBLIC_IP
+
+Replace the placeholder with your actual EC2 public IPv4 address.
+
+You should see the Laravel welcome page if the default welcome
+route is still present.
+
+Test the HTTP response from the EC2 terminal:
+
+    curl -I http://localhost
+
+Test the public endpoint from EC2:
+
+    curl -I http://YOUR_EC2_PUBLIC_IP
+
+Test the public endpoint from your LOCAL COMPUTER:
+
+    curl -I http://YOUR_EC2_PUBLIC_IP
+
+A successful HTTP response may be:
+
+    HTTP/1.1 200 OK
+
+The server may return another valid HTTP status if your application's
+routes or authentication behavior differ.
+
+Test the response body:
+
+    curl http://YOUR_EC2_PUBLIC_IP
+
+Test the Nginx configuration:
+
+    sudo docker compose exec web nginx -t
+
+Check that the three services are running:
+
+    sudo docker compose ps
+
+If the browser cannot connect, check:
+1. EC2 instance is running.
+2. Security Group allows TCP port 80.
+3. EC2 has a public IPv4 address.
+4. Docker Compose services are running.
+5. Nginx logs show no configuration errors.
+6. The app container can resolve and reach the database.
+7. APP_URL is correct.
+
+
+======================================================================
+PART 30 — TEST NETWORKING ON AWS EC2
+======================================================================
+
+List the networks:
+
+    sudo docker network ls
+
+Find the project network names:
+
+    sudo docker compose ps
+
+Inspect frontend:
+
+    sudo docker network inspect laravel-project_frontend
+
+Inspect backend:
+
+    sudo docker network inspect laravel-project_backend
+
+If the network name differs, use the actual name from docker network ls.
+
+Check the app can resolve the database service:
+
+    sudo docker compose exec app php -r \
+      '$ip = gethostbyname("db"); echo $ip . PHP_EOL;'
+
+Check the Laravel database connection:
+
+    sudo docker compose exec app php artisan migrate:status
+
+Check the MySQL service:
+
+    sudo docker compose exec db sh -lc \
+      'mysqladmin ping -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --silent'
+
+Check published ports:
+
+    sudo docker compose port web 80
+
+Inspect listening ports on EC2:
+
+    sudo ss -tulpn
+
+Expected public application port:
+    80
+
+Expected internal-only service ports:
+    9000 for PHP-FPM
+    3306 for MySQL
+
+Neither 9000 nor 3306 should be published on the EC2 host by this
+Compose configuration.
+
+The app and database communicate over Docker's backend network.
+
+
+======================================================================
+PART 31 — TEST VOLUME PERSISTENCE ON AWS
+======================================================================
+
+Test Laravel storage persistence:
+
+    sudo docker compose exec app sh -lc \
+      'date > storage/app/persistence-test.txt'
+
+Read the file:
+
+    sudo docker compose exec app \
+      cat storage/app/persistence-test.txt
+
+Recreate the application container:
+
+    sudo docker compose up -d --force-recreate app
+
+Read the file again:
+
+    sudo docker compose exec app \
+      cat storage/app/persistence-test.txt
+
+The file should remain available.
+
+Test database persistence by creating a test database:
+
+    sudo docker compose exec db sh -lc \
+      'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE persistence_test;"'
+
+Verify:
+
+    sudo docker compose exec db sh -lc \
+      'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SHOW DATABASES;"'
+
+Recreate the database container:
+
+    sudo docker compose up -d --force-recreate db
+
+Wait for the database health check.
+
+Verify the database again:
+
+    sudo docker compose exec db sh -lc \
+      'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SHOW DATABASES;"'
+
+The persistence_test database should still exist.
+
+These tests demonstrate that the named volumes survive container
+recreation.
+
+Do not run this command on a deployment whose data you need:
+
+    sudo docker compose down -v
+
+It deletes Compose-managed named volumes and can permanently delete
+your database data.
+
+
+======================================================================
+PART 32 — UPDATE THE APPLICATION AFTER A CODE CHANGE
+======================================================================
+
+Suppose you update a Laravel route or frontend asset.
+
+On your LOCAL COMPUTER:
+
+    cd ~/laravel-project
+
+Check changes:
+
+    git status
+
+Commit the code:
+
+    git add routes resources public
+    git commit -m "Update Laravel application"
+
+Push the code:
+
+    git push origin main
+
+Build new Docker images.
+
+For this example, use tag 1.1:
+
+    export DOCKERHUB_USERNAME=YOUR_DOCKERHUB_USERNAME
+
+    docker build \
+      --platform linux/amd64 \
+      --target app \
+      -t "$DOCKERHUB_USERNAME/laravel-app:1.1" \
+      .
+
+    docker build \
+      --platform linux/amd64 \
+      --target web \
+      -t "$DOCKERHUB_USERNAME/laravel-web:1.1" \
+      .
+
+Push the images:
+
+    docker push "$DOCKERHUB_USERNAME/laravel-app:1.1"
+    docker push "$DOCKERHUB_USERNAME/laravel-web:1.1"
+
+Update compose.yaml so the image tags are 1.1 instead of 1.0.
+
+Commit and push the updated Compose file:
+
+    git add compose.yaml
+    git commit -m "Update deployment image tags"
+    git push origin main
+
+On EC2:
+
+    cd ~/deployments/laravel-project
+
+    git pull origin main
+
+Pull the new images:
+
+    sudo docker compose pull
+
+Recreate the services:
+
+    sudo docker compose up -d
+
+Check status:
+
+    sudo docker compose ps
+
+Check logs:
+
+    sudo docker compose logs --tail=100
+
+Run migrations if the application introduces new database migrations:
+
+    sudo docker compose exec app php artisan migrate --force
+
+The database volume remains intact unless you explicitly delete it.
+
+IMPORTANT:
+The image tag in compose.yaml must match the tag pushed to Docker Hub.
+If you push 1.1 but Compose still specifies 1.0, EC2 will keep using
+the old image.
+
+
+======================================================================
+PART 33 — USEFUL DOCKER COMMANDS FOR THE LAB
+======================================================================
+
+Show running containers:
+
+    docker ps
+
+Show all containers:
+
+    docker ps -a
+
+Show images:
+
+    docker images
+
+Show volumes:
+
+    docker volume ls
+
+Show networks:
+
+    docker network ls
+
+View Compose services:
+
+    docker compose ps
+
+Start the project:
+
+    docker compose up -d
+
+Stop services:
+
+    docker compose stop
+
+Start stopped services:
+
+    docker compose start
+
+Restart services:
+
+    docker compose restart
+
+Stop and remove project containers and networks:
+
+    docker compose down
+
+Rebuild a particular image target:
+
+    docker build --target app -t laravel-app:local .
+
+    docker build --target web -t laravel-web:local .
+
+Inspect image information:
+
+    docker image inspect IMAGE_NAME
+
+Inspect container information:
+
+    docker inspect CONTAINER_NAME
+
+Show resource consumption:
+
+    docker stats
+
+View service logs:
+
+    docker compose logs -f app
+
+View database logs:
+
+    docker compose logs -f db
+
+View web logs:
+
+    docker compose logs -f web
+
+Execute a command in a running container:
+
+    docker compose exec app php artisan --version
+
+Run a one-off command in a new container:
+
+    docker compose run --rm app php artisan --version
+
+List container processes:
+
+    docker compose top
+
+Check Compose configuration:
+
+    docker compose config
+
+Check network membership:
+
+    docker network inspect NETWORK_NAME
+
+Check disk usage:
+
+    docker system df
+
+Clean up unused Docker resources carefully:
+
+    docker system prune
+
+WARNING:
+Do not use volume-deletion options unless you understand which data
+will be permanently removed.
+
+
+======================================================================
+PART 34 — TROUBLESHOOTING COMMON ERRORS
+======================================================================
+
+ERROR 1: Docker daemon is not running
+
+Check:
+
+    sudo systemctl status docker
+
+Fix:
+
+    sudo systemctl enable --now docker
+
+
+ERROR 2: Permission denied connecting to Docker
+
+Use sudo:
+
+    sudo docker ps
+
+    sudo docker compose ps
+
+You can add a trusted user to the Docker group, but membership in
+that group effectively grants root-level control of the machine.
+
+
+ERROR 3: Docker image build fails
+
+Check:
+
+    docker system df
+    df -h
+    free -h
+
+Inspect the detailed build output:
+
+    docker build --progress=plain --no-cache --target app -t test-app .
+
+Check Composer and npm errors in the build output.
+
+Do not ignore missing PHP extensions or failed frontend builds.
+
+
+ERROR 4: Nginx returns 502 Bad Gateway
+
+Check:
+
+    docker compose ps
+
+    docker compose logs --tail=100 web
+
+    docker compose logs --tail=100 app
+
+Verify Nginx uses:
+
+    fastcgi_pass app:9000;
+
+Verify the app service is running and PHP-FPM is listening on port 9000.
+
+Check network membership:
+
+    docker network inspect laravel-project_frontend
+
+
+ERROR 5: MySQL connection refused
+
+Check:
+
+    docker compose ps db
+
+    docker compose logs --tail=100 db
+
+    docker compose exec app php artisan migrate:status
+
+Verify the environment:
+
+    DB_CONNECTION=mysql
+    DB_HOST=db
+    DB_PORT=3306
+
+Ensure that the app and database share the backend network.
+
+
+ERROR 6: MySQL access denied
+
+Check the values in .env:
+
+    DB_DATABASE=laravel
+    DB_USERNAME=laravel
+    DB_PASSWORD=YOUR_STRONG_DB_PASSWORD
+
+Check the database service environment variables.
+
+IMPORTANT:
+MySQL initializes its users and database when its data directory is
+first initialized. Changing environment passwords later does not
+automatically update users in an already initialized database volume.
+
+Do not delete the database volume as a quick fix if it contains
+important data.
+
+
+ERROR 7: Laravel says APP_KEY is missing
+
+Check:
+
+    grep '^APP_KEY=' .env
+
+Regenerate a key only if you are intentionally initializing a new
+application:
+
+    docker compose run --no-deps --rm app php artisan key:generate --show
+
+Then update APP_KEY in .env.
+
+Do not change the key casually on an existing application.
+
+
+ERROR 8: Laravel storage permission denied
+
+Check:
+
+    docker compose exec app ls -ld storage bootstrap/cache
+
+Check the container logs:
+
+    docker compose logs --tail=100 app
+
+For a lab-only permission repair, you can run:
+
+    docker compose exec -u root app \
+      chown -R www-data:www-data storage bootstrap/cache
+
+This changes permissions inside the container's mounted storage
+and application cache directories. Verify the result before proceeding.
+
+
+ERROR 9: Browser cannot reach EC2
+
+Check the instance:
+
+    sudo docker compose ps
+
+Check port 80:
+
+    sudo ss -tulpn | grep ':80'
+
+Test locally on EC2:
+
+    curl -I http://localhost
+
+Check the AWS Security Group inbound rule for TCP 80.
+
+Check the public IPv4 address and subnet routing.
+
+Do not open MySQL port 3306 to solve a web access problem.
+
+
+ERROR 10: Docker Hub image pull denied
+
+Check:
+
+    sudo docker images
+
+Verify the repository names and image tags.
+
+If the repositories are private, authenticate:
+
+    sudo docker login -u YOUR_DOCKERHUB_USERNAME
+
+Retry:
+
+    sudo docker compose pull
+
+
+ERROR 11: Frontend CSS or JavaScript is missing
+
+Check the assets in the app image:
+
+    docker compose exec app ls -la public/build
+
+Check the assets in the web image:
+
+    docker compose exec web ls -la /var/www/html/public/build
+
+Rebuild the app and web images if the Vite build is missing or outdated.
+
+
+ERROR 12: Website works locally but not from the internet
+
+Verify:
+
+    curl -I http://localhost
+
+Then check:
+
+- AWS Security Group permits TCP 80.
+- EC2 has a public IPv4 address.
+- The subnet has an Internet Gateway route.
+- The instance is not blocked by a host firewall.
+- Nginx is running and listening on port 80.
+
+
+======================================================================
+PART 35 — FINAL VERIFICATION CHECKLIST
+======================================================================
+
+GITHUB:
+
+[ ] Repository cloned successfully.
+[ ] Dockerfile created.
+[ ] .dockerignore created.
+[ ] compose.yaml created.
+[ ] Nginx configuration created.
+[ ] .env is ignored by Git.
+[ ] Changes committed and pushed to GitHub.
+
+DOCKER HUB:
+
+[ ] Docker Hub authentication completed.
+[ ] laravel-app:1.0 image built.
+[ ] laravel-web:1.0 image built.
+[ ] Both images pushed successfully.
+[ ] Both images visible in Docker Hub.
+
+AWS EC2:
+
+[ ] Ubuntu EC2 instance running.
+[ ] Public IPv4 address assigned.
+[ ] SSH allowed only from your own IP.
+[ ] HTTP port 80 allowed.
+[ ] MySQL port 3306 not publicly exposed.
+[ ] PHP-FPM port 9000 not publicly exposed.
+[ ] Docker Engine installed.
+[ ] Docker Compose installed.
+[ ] GitHub repository cloned.
+[ ] .env created securely.
+[ ] Docker Hub images pulled.
+[ ] All three containers running.
+
+THREE-TIER ARCHITECTURE:
+
+[ ] Nginx container running.
+[ ] Laravel/PHP-FPM container running.
+[ ] MySQL container running.
+[ ] Web and app share the frontend network.
+[ ] App and database share the backend network.
+[ ] Database is not publicly exposed.
+[ ] Database health check passes.
+
+PERSISTENCE:
+
+[ ] mysql_data volume exists.
+[ ] laravel_storage volume exists.
+[ ] Laravel storage test file survives app recreation.
+[ ] Test database survives database container recreation.
+
+APPLICATION:
+
+[ ] Database migrations run successfully.
+[ ] Laravel Artisan commands work.
+[ ] Nginx configuration test passes.
+[ ] HTTP request returns a valid response.
+[ ] Website opens in the browser using the EC2 public IP.
+[ ] Logs have been checked.
+[ ] Final container status verified.
+
+FINAL COMMANDS TO SHOW THE RUNNING DEPLOYMENT:
+
+    sudo docker compose ps
+
+    sudo docker ps
+
+    sudo docker images
+
+    sudo docker network ls
+
+    sudo docker volume ls
+
+    sudo docker compose logs --tail=50
+
+    curl -I http://localhost
+
+    sudo docker compose exec app php artisan --version
+
+    sudo docker compose exec app php artisan migrate:status
+
+
+======================================================================
+END OF GUIDE
+======================================================================
+
+EXPECTED FINAL RESULT:
+
+Browser:
+    http://YOUR_EC2_PUBLIC_IP
+
+Three running containers:
+    web
+    app
+    db
+
+Two Docker Hub application images:
+    YOUR_DOCKERHUB_USERNAME/laravel-web:1.0
+    YOUR_DOCKERHUB_USERNAME/laravel-app:1.0
+
+Persistent volumes:
+    mysql_data
+    laravel_storage
+
+Networks:
+    frontend
+    backend
+
+Public access:
+    TCP port 80 for HTTP
+    TCP port 22 for SSH from your permitted IP
+
+Private application communication:
+    Nginx -> PHP-FPM using app:9000
+    Laravel -> MySQL using db:3306
+
+Database and PHP-FPM are not published on public host ports.
+
+This completes the three-tier Docker deployment lab.
