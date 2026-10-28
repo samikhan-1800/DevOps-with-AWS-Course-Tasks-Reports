@@ -1,0 +1,683 @@
+# Linux Commands Cheat Sheet (Ubuntu)
+
+![Linux](https://img.shields.io/badge/Linux-Ubuntu-E95420?logo=ubuntu&logoColor=white) ![Level](https://img.shields.io/badge/DevOps-Basic%20to%20Advanced-0A66C2) ![Format](https://img.shields.io/badge/Format-Markdown-2ea44f)
+
+A structured, easy-to-read Linux command reference for DevOps labs and exam preparation. Each command includes a short explanation.
+
+## 1. Basic System Commands
+
+- `pwd` — Show current working directory
+- `whoami` — Show current username
+- `id` — Show user ID and group information
+- `hostname` — Show computer hostname
+- `uname -a` — Show complete kernel information
+- `uname -r` — Show kernel version
+- `date` — Show current date and time
+- `cal` — Display calendar (install ncal if unavailable)
+- `clear` — Clear terminal screen
+- `history` — Show command history
+- `exit` — Exit the current shell
+- `man ls` — Open manual for ls
+- `ls --help` — Display command help
+- `uptime` — Show system uptime and load
+- `who` — Show logged-in users
+- `w` — Show logged-in users and their activity
+- `last` — Show recent login history
+- `which python3` — Find executable path
+- `type cd` — Identify command type
+- `echo "Hello Linux"` — Print text
+- `printf "Hello\n"` — Print formatted text
+- `hostnamectl` — Display system hostname information
+- `lsb_release -a` — Display Ubuntu version
+- `cat /etc/os-release` — Display operating system details
+
+## 2. Directory Navigation
+
+- `cd /` — Go to root directory
+- `cd ~` — Go to home directory
+- `cd` — Go to home directory
+- `cd ..` — Go up one directory
+- `cd ../..` — Go up two directories
+- `cd -` — Return to previous directory
+- `cd /home/username` — Open a user's home directory
+- `ls` — List files and directories
+- `ls -l` — Detailed listing
+- `ls -a` — Show hidden files
+- `ls -lh` — Human-readable file sizes
+- `ls -lah` — Show all files with details
+- `ls -lt` — Sort by modification time
+- `ls -ltr` — Show oldest modified files first
+- `ls -R` — List directories recursively
+- `tree` — Display directory tree (install tree if needed)
+- `find . -name "*.txt"` — Find text files recursively
+- `find /home -type d` — Find directories under /home
+- `find /home -type f` — Find files under /home
+- `find . -type f -name "*.log"` — Find log files
+- `locate filename.txt` — Search file index (requires mlocate/plocate)
+
+## 3. Create Files And Directories
+
+- `mkdir project` — Create directory
+- `mkdir dir1 dir2` — Create multiple directories
+- `mkdir -p a/b/c` — Create nested directories
+- `touch file.txt` — Create an empty file
+- `touch a.txt b.txt` — Create multiple files
+- `nano file.txt` — Open terminal text editor
+- `vim file.txt` — Open Vim editor (if installed)
+- `cat > file.txt` — Create/overwrite file; Ctrl+D to finish
+- `echo "Hello" > file.txt` — Write text, replacing existing content
+- `echo "New line" >> file.txt` — Append text to file
+- `printf "A\nB\n" > file.txt` — Write multiple lines
+- `cp file.txt copy.txt` — Copy file
+- `cp -i file.txt copy.txt` — Ask before overwriting
+- `cp -v file.txt copy.txt` — Show copy operation
+- `cp -r project backup` — Copy directory recursively
+- `cp -a project backup` — Archive-style copy preserving metadata
+- `mv old.txt new.txt` — Rename file
+- `mv file.txt /tmp/` — Move file to another directory
+- `mv -i file.txt /tmp/` — Ask before overwriting
+- `rm file.txt` — Delete file
+- `rm -i file.txt` — Ask before deleting
+- `rm -r old_directory` — Delete directory and contents
+- `rmdir empty_directory` — Delete empty directory
+- `file file.txt` — Identify file type
+- `stat file.txt` — Show file metadata
+- `basename /home/user/a.txt` — Extract filename
+- `dirname /home/user/a.txt` — Extract parent directory
+
+## 4. Read And Search File Contents
+
+- `cat file.txt` — Display complete file
+- `less file.txt` — Read file page by page
+- `more file.txt` — Read file page by page
+- `head file.txt` — Display first 10 lines
+- `head -n 20 file.txt` — Display first 20 lines
+- `tail file.txt` — Display last 10 lines
+- `tail -n 50 file.txt` — Display last 50 lines
+- `tail -f app.log` — Follow new log entries
+- `grep "error" app.log` — Search for text
+- `grep -i "error" app.log` — Case-insensitive search
+- `grep -n "error" app.log` — Show matching line numbers
+- `grep -r "TODO" .` — Search recursively
+- `grep -v "success" app.log` — Show lines without matching text
+- `grep -E "error|warning" app.log` — Search multiple patterns
+- `wc file.txt` — Count lines, words and bytes
+- `wc -l file.txt` — Count lines
+- `wc -w file.txt` — Count words
+- `sort file.txt` — Sort lines
+- `sort -r file.txt` — Reverse sort
+- `uniq file.txt` — Remove adjacent duplicate lines
+- `sort file.txt | uniq` — Sort and remove duplicates
+- `cut -d: -f1 /etc/passwd` — Extract first colon-separated field
+- `tee output.txt` — Write input to file and terminal
+- `diff file1.txt file2.txt` — Compare files
+- `cmp file1.txt file2.txt` — Compare files byte by byte
+- `awk '{print $1}' file.txt` — Print first field of each line
+- `sed 's/old/new/g' file.txt` — Replace text in displayed output
+- `sed -i 's/old/new/g' file.txt` — Replace text directly in file
+
+## 5. Users And Groups
+
+- `whoami` — Show current user
+- `id` — Show current UID, GID and groups
+- `id username` — Show specific user's identity
+- `groups` — Show current user's groups
+- `groups username` — Show a user's groups
+- `who` — Show logged-in users
+- `getent passwd` — List account records
+- `getent passwd username` — Find specific user
+- `getent group` — List groups
+- `cat /etc/passwd` — View account entries
+- `cat /etc/group` — View group entries
+- `sudo adduser ali` — Create user interactively
+- `sudo useradd -m ali` — Create user and home directory
+- `sudo passwd ali` — Set/change user password
+- `sudo usermod -aG sudo ali` — Add user to sudo group
+- `sudo usermod -aG groupname ali` — Add user to another group
+- `sudo groupadd developers` — Create group
+- `sudo groupdel developers` — Delete group
+- `sudo userdel ali` — Delete user account
+- `sudo userdel -r ali` — Delete account and home directory
+- `sudo usermod -l newname oldname` — Rename user account
+- `sudo usermod -s /bin/bash ali` — Set user's login shell
+- `sudo gpasswd -a ali developers` — Add user to group
+- `sudo gpasswd -d ali developers` — Remove user from group
+- `sudo deluser ali developers` — Remove user from group on Ubuntu
+- `sudo chage -l ali` — Display password aging information
+- `su - ali` — Switch to another user
+- `sudo -i` — Open root login shell
+- `sudo command` — Run command with elevated privileges
+- `sudo -l` — Show permitted sudo commands
+- `sudo visudo` — Safely edit sudoers configuration
+- `newgrp developers` — Start shell with selected group
+- `getent group sudo` — Check sudo group membership
+
+### Note
+
+Use usermod -aG to append group membership.
+Without -a, usermod -G may remove other supplementary groups.
+The user may need to log out and back in for new group
+membership to apply to existing sessions.
+
+## 6. File Ownership And Permissions
+
+- `ls -l` — View permissions and ownership
+- `chmod 644 file.txt` — Owner rw, group r, others r
+- `chmod 600 file.txt` — Owner read/write only
+- `chmod 755 script.sh` — Owner rwx, others rx
+- `chmod 700 private.sh` — Owner full permissions only
+- `chmod +x script.sh` — Add execute permission
+- `chmod -x script.sh` — Remove execute permission
+- `chmod u+x script.sh` — Add execute for owner
+- `chmod g+w file.txt` — Add group write permission
+- `chmod o-r file.txt` — Remove others' read permission
+- `chmod -R 755 directory` — Apply permissions recursively
+- `chown ali file.txt` — Change file owner
+- `chown ali:developers file.txt` — Change owner and group
+- `chown :developers file.txt` — Change group ownership
+- `chown -R ali:developers directory` — Change ownership recursively
+- `chgrp developers file.txt` — Change group ownership
+- `umask` — Show default permission mask
+- `umask 022` — Set default permission mask
+- `getfacl file.txt` — View access control lists (ACLs)
+- `setfacl -m u:ali:rw file.txt` — Give user ali read/write ACL
+- `setfacl -x u:ali file.txt` — Remove user's ACL entry
+- `lsattr file.txt` — Show file attributes
+- `sudo chattr +i file.txt` — Make file immutable
+- `sudo chattr -i file.txt` — Remove immutable attribute
+
+### Permission Numbers
+
+- **r** — read = 4
+- **w** — write = 2
+- **x** — execute = 1
+
+- **7** — rwx
+- **6** — rw-
+- **5** — r-x
+- **4** — r--
+- **755** — rwxr-xr-x
+- **644** — rw-r--r--
+
+## 7. Root And Sudo
+
+- `sudo apt update` — Update package lists
+- `sudo command` — Run command as administrator
+- `sudo -i` — Open root shell
+- `sudo -s` — Open privileged shell
+- `sudo -u username command` — Run command as another user
+- `sudo -l` — List allowed sudo commands
+- `su -` — Switch to root if permitted
+- `exit` — Leave root/other user's shell
+- `whoami` — Check current identity
+
+## 8. Package Management On Ubuntu
+
+- `sudo apt update` — Refresh package indexes
+- `sudo apt upgrade` — Upgrade installed packages
+- `sudo apt full-upgrade` — Upgrade packages and handle dependencies
+- `sudo apt install tree` — Install a package
+- `sudo apt install curl wget git` — Install multiple packages
+- `sudo apt remove tree` — Remove package, retaining some configuration
+- `sudo apt purge tree` — Remove package and system configuration
+- `sudo apt autoremove` — Remove unused dependencies
+- `sudo apt clean` — Clear downloaded package files
+- `sudo apt autoclean` — Remove obsolete package files
+- `apt search nginx` — Search packages
+- `apt show nginx` — Display package information
+- `dpkg -l` — List installed packages
+- `dpkg -l | grep nginx` — Search installed packages
+- `dpkg -S /usr/bin/ls` — Find which package owns a file
+- `sudo dpkg -i package.deb` — Install local .deb package
+- `sudo dpkg -r package-name` — Remove installed .deb package
+- `snap list` — List installed Snap packages
+- `sudo snap install package` — Install a Snap package
+- `sudo snap remove package` — Remove a Snap package
+
+## 9. System Information And Resources
+
+- `free -h` — Display RAM usage
+- `df -h` — Display disk space usage
+- `df -Th` — Disk usage with filesystem types
+- `du -sh directory` — Show directory size
+- `du -h --max-depth=1 .` — Show sizes of current directory's subdirectories
+- `lsblk` — List disks and partitions
+- `lsblk -f` — Show filesystem information
+- `blkid` — Display block device attributes
+- `mount` — Show mounted filesystems
+- `findmnt` — Display mounted filesystem tree
+- `lscpu` — Display CPU information
+- `lspci` — List PCI hardware
+- `lsusb` — List USB devices
+- `free -m` — RAM usage in MB
+- `uptime` — Uptime and load averages
+- `top` — Live process/resource monitor
+- `htop` — Improved monitor (install htop if needed)
+- `vmstat 1` — Display system statistics every second
+- `iostat` — Disk/CPU statistics (install sysstat if needed)
+- `dmesg` — Display kernel messages
+- `dmesg -T` — Show readable kernel message times
+- `journalctl -k` — Display kernel journal logs
+
+## 10. Process Management
+
+- `ps` — Show processes for current terminal
+- `ps aux` — Show detailed process list
+- `ps -ef` — Show full-format process list
+- `pgrep nginx` — Find process IDs by name
+- `pidof nginx` — Find process IDs by program name
+- `top` — Monitor processes
+- `htop` — Interactive process monitor
+- `kill PID` — Request process termination
+- `kill -15 PID` — Send SIGTERM to process
+- `kill -9 PID` — Forcefully terminate process
+- `pkill nginx` — Terminate processes matching name
+- `killall nginx` — Terminate processes by name
+- `jobs` — Show background jobs in current shell
+- `command &` — Run command in background
+- `bg` — Resume job in background
+- `fg` — Bring job to foreground
+- `nohup command > app.log 2>&1 &` — Run command after terminal closes
+- `nice -n 10 command` — Start process with adjusted priority
+- `renice 5 -p PID` — Change process priority
+- `watch -n 2 'free -h'` — Repeat command every 2 seconds
+- `sleep 10` — Pause for 10 seconds
+
+## 11. Services And Systemd
+
+- `systemctl status nginx` — Check service status
+- `sudo systemctl start nginx` — Start service
+- `sudo systemctl stop nginx` — Stop service
+- `sudo systemctl restart nginx` — Restart service
+- `sudo systemctl reload nginx` — Reload service configuration
+- `sudo systemctl enable nginx` — Enable service at boot
+- `sudo systemctl disable nginx` — Disable automatic startup
+- `sudo systemctl enable --now nginx` — Enable and start service
+- `sudo systemctl is-active nginx` — Check if service is active
+- `sudo systemctl is-enabled nginx` — Check if enabled at boot
+- `systemctl list-units --type=service` — List loaded services
+- `systemctl --failed` — List failed systemd units
+- `sudo systemctl daemon-reload` — Reload systemd unit definitions
+- `journalctl -u nginx` — Show service logs
+- `journalctl -u nginx -f` — Follow service logs
+- `journalctl -u nginx -n 100` — Show last 100 log entries
+- `journalctl -xe` — Inspect recent system errors
+
+## 12. Networking And Ip Addresses
+
+- `ip addr` — Show network interfaces and IP addresses
+- `ip a` — Short form of ip addr
+- `ip -br addr` — Brief interface/IP listing
+- `ip link` — Show network interfaces
+- `ip route` — Display routing table
+- `ip route get 8.8.8.8` — Show route to destination
+- `hostname -I` — Show assigned IP addresses
+- `ip neigh` — Display neighbor/ARP information
+- `ping -c 4 8.8.8.8` — Send four ICMP echo requests
+- `ping -c 4 google.com` — Test network and DNS connectivity
+- `curl -I https://example.com` — Fetch HTTP response headers
+- `curl -v https://example.com` — Detailed HTTP connection
+- `wget https://example.com/file.zip` — Download a file
+- `ss -tuln` — Show listening TCP/UDP ports
+- `ss -tulpn` — Show listening ports and process details
+- `ss -ant` — Show TCP connections
+- `sudo lsof -i :80` — Find process using port 80
+- `sudo fuser -v 8000/tcp` — Find processes using TCP port 8000
+- `traceroute google.com` — Trace network route (install if needed)
+- `tracepath google.com` — Trace network path (if installed)
+- `dig google.com` — DNS lookup (install dnsutils if needed)
+- `nslookup google.com` — DNS lookup
+- `getent hosts google.com` — Resolve hostname using system configuration
+- `resolvectl status` — Show DNS resolver information
+- `ip -s link` — Show interface traffic statistics
+- `nmcli device status` — Show NetworkManager device status
+- `nmcli connection show` — List network connections
+- `sudo ufw status` — Check Ubuntu firewall status
+- `sudo ufw enable` — Enable firewall
+- `sudo ufw allow 22/tcp` — Allow SSH
+- `sudo ufw allow 80/tcp` — Allow HTTP
+- `sudo ufw allow 443/tcp` — Allow HTTPS
+- `sudo ufw allow 8000/tcp` — Allow TCP port 8000
+- `sudo ufw deny 8080/tcp` — Deny TCP port 8080
+- `sudo ufw delete allow 8000/tcp` — Remove firewall rule
+- `sudo ufw disable` — Disable firewall
+
+### Note
+
+Before enabling UFW on a remote server, allow SSH first.
+AWS EC2 traffic must also be permitted by its Security Group.
+An Ubuntu firewall rule alone does not open an AWS Security Group port.
+
+## 13. Setting A Static Ip (Netplan)
+
+- `ip addr` — Inspect current IP addresses
+- `ip route` — Inspect default gateway
+- `ls /etc/netplan/` — List Netplan configuration files
+- `sudo nano /etc/netplan/01-netcfg.yaml` — Edit config (filename may differ)
+- `sudo netplan generate` — Validate/generate configuration
+- `sudo netplan try` — Test configuration with rollback option
+- `sudo netplan apply` — Apply configuration
+
+### Note
+
+Static IP configuration depends on the network environment.
+Use the correct interface, gateway, subnet and DNS.
+Do not copy a static-IP example blindly onto AWS EC2.
+AWS network addressing is generally managed by the VPC and DHCP.
+
+## 14. Filesystem And Disk Management
+
+- `df -h` — Show filesystem capacity
+- `du -sh /var/log` — Show log directory size
+- `du -h --max-depth=1 /var` — Inspect sizes under /var
+- `lsblk` — Show disks and partitions
+- `sudo fdisk -l` — List partition tables
+- `findmnt` — Show mount points
+- `mount` — Display mounted filesystems
+- `sudo mount /dev/sdb1 /mnt` — Mount a filesystem (example device only)
+- `sudo umount /mnt` — Unmount filesystem
+- `sudo blkid` — Show block device UUIDs
+- `sudo fsck /dev/DEVICE` — Check filesystem when safely unmounted
+
+## 15. Archiving And Compression
+
+- `tar -cvf backup.tar folder/` — Create tar archive
+- `tar -xvf backup.tar` — Extract tar archive
+- `tar -tvf backup.tar` — List archive contents
+- `tar -czvf backup.tar.gz folder/` — Create gzip-compressed archive
+- `tar -xzvf backup.tar.gz` — Extract gzip-compressed archive
+- `tar -cjvf backup.tar.bz2 folder/` — Create bzip2 archive
+- `tar -xjvf backup.tar.bz2` — Extract bzip2 archive
+- `gzip file.txt` — Compress a file
+- `gunzip file.txt.gz` — Decompress a gzip file
+- `zip -r backup.zip folder/` — Create ZIP archive (install zip if needed)
+- `unzip backup.zip` — Extract ZIP archive
+- `rsync -av source/ dest/` — Synchronize directories
+- `rsync -avz source/ user@host:/path/` — Transfer files over SSH
+
+## 16. Environment Variables
+
+- `env` — Display environment variables
+- `printenv` — Display environment variables
+- `echo $HOME` — Show home directory
+- `echo $PATH` — Display executable search paths
+- `export APP_ENV=production` — Set variable for current shell
+- `unset APP_ENV` — Remove shell variable
+- `export PATH="$PATH:/opt/bin"` — Add directory to PATH temporarily
+- `source ~/.bashrc` — Reload Bash configuration
+- `nano ~/.bashrc` — Edit Bash configuration
+- `source .env` — Load shell-compatible environment assignments
+
+### Note
+
+A Laravel .env file may contain secrets and application settings.
+Do not publish it to GitHub or execute source .env blindly unless
+you trust its contents and understand the shell commands inside.
+
+## 17. Redirection And Pipes
+
+- `command > output.txt` — Redirect output, replacing file
+- `command >> output.txt` — Append output to file
+- `command 2> errors.txt` — Redirect standard error
+- `command > output.txt 2>&1` — Redirect output and errors together
+- `command 2>&1 | tee log.txt` — Display and save output plus errors
+- `command1 | command2` — Send first command's output to second
+- `command1 && command2` — Run second command if first succeeds
+- `command1 || command2` — Run second command if first fails
+- `command1 ; command2` — Run commands sequentially
+- `sort names.txt | uniq` — Example of a pipeline
+- `ps aux | grep nginx` — Search process listing
+- `df -h | grep /dev` — Filter disk usage output
+
+## 18. Ssh And Remote Servers
+
+- `ssh username@SERVER_IP` — Connect to remote server
+- `ssh -i key.pem ubuntu@SERVER_IP` — Connect using private key
+- `ssh -p 2222 user@SERVER_IP` — Connect using a custom port
+- `ssh-keygen -t ed25519` — Generate SSH key pair
+- `ssh-keygen -t rsa -b 4096` — Generate RSA key pair
+- `ssh-add ~/.ssh/id_ed25519` — Add private key to agent
+- `ssh-add -l` — List keys in SSH agent
+- `ssh-copy-id user@SERVER_IP` — Install public key on remote server
+- `scp file.txt user@SERVER_IP:/home/user/` — Copy file to server
+- `scp user@SERVER_IP:/path/file.txt .` — Download remote file
+- `scp -r folder/ user@SERVER_IP:/home/user/` — Copy directory
+- `rsync -avz folder/ user@SERVER_IP:/home/user/folder/` — Sync directory
+- `ssh -v user@SERVER_IP` — Debug SSH connection
+
+### Aws Example
+
+```bash
+chmod 400 my-key.pem
+ssh -i my-key.pem ubuntu@PUBLIC_IP
+```
+
+### Note
+
+Use the correct SSH username for the AMI. For standard Ubuntu EC2
+images, the default username is commonly ubuntu.
+Keep private keys secret and never upload them to GitHub.
+
+## 19. Logs And Troubleshooting
+
+- `journalctl -xe` — Recent system logs and errors
+- `journalctl -f` — Follow system journal
+- `journalctl -u nginx` — Nginx service logs
+- `journalctl -u jenkins` — Jenkins service logs
+- `journalctl -u docker` — Docker service logs
+- `sudo tail -f /var/log/syslog` — Follow syslog (if present)
+- `sudo tail -f /var/log/auth.log` — Follow authentication logs (if present)
+- `sudo tail -n 100 /var/log/nginx/error.log` — Nginx error log
+- `sudo tail -n 100 /var/log/nginx/access.log` — Nginx access log
+- `dmesg -T` — Kernel messages
+- `df -h` — Diagnose full disks
+- `free -h` — Diagnose memory usage
+- `top` — Diagnose busy processes
+- `ps aux | grep process_name` — Find a process
+- `ss -tulpn` — Diagnose listening ports
+- `systemctl --failed` — Find failed services
+
+## 20. Scheduling Tasks
+
+- `crontab -l` — List current user's cron jobs
+- `crontab -e` — Edit current user's cron jobs
+- `crontab -r` — Remove current user's cron jobs
+- `at 15:00` — Schedule one-time job (install at if needed)
+- `atq` — List pending at jobs
+- `atrm JOB_ID` — Remove a scheduled at job
+- `systemctl list-timers` — List systemd timers
+
+### Cron Format
+
+* * * * * command
+| | | | |
+| | | | +-- Day of week
+| | | +---- Month
+| | +------ Day of month
+| +-------- Hour
++---------- Minute
+
+### Examples
+
+- `0 2 * * * /home/user/backup.sh` — Every day at 2 AM
+- `*/5 * * * * command` — Every 5 minutes
+- `0 9 * * 1 command` — Every Monday at 9 AM
+
+## 21. Architecture And System Administration
+
+- `getconf LONG_BIT` — Show system architecture bitness
+- `dpkg --print-architecture` — Show package architecture
+- `uname -m` — Show machine architecture
+- `lscpu` — CPU information
+- `lsmem` — Memory block information (if available)
+- `lsblk` — Block devices
+- `sudo dmidecode -t system` — System hardware information (if available)
+- `timedatectl` — Time and clock settings
+- `timedatectl status` — Show time synchronization status
+- `sudo timedatectl set-timezone Asia/Karachi` — Set timezone
+- `systemctl list-unit-files` — List installed systemd unit files
+- `systemctl get-default` — Show default systemd target
+- `sudo reboot` — Restart system
+- `sudo shutdown -h now` — Shut down immediately
+- `sudo shutdown -r now` — Restart immediately
+- `sudo shutdown -h +5` — Shut down after five minutes
+- `sudo shutdown -c` — Cancel pending shutdown
+
+## 22. Important Special Directories
+
+- `/` — Root of the filesystem
+- `/home` — Home directories
+- `/root` — Root user's home
+- `/etc` — System configuration files
+- `/var/log` — Logs
+- `/var/www` — Common web application directory
+- `/tmp` — Temporary files
+- `/usr/bin` — Common user executables
+- `/usr/local/bin` — Locally installed executables
+- `/opt` — Optional third-party software
+- `/dev` — Device files
+- `/proc` — Process and kernel information
+- `/sys` — Kernel and device information
+- `/mnt` — Temporary mount point
+- `/media` — Removable media mount points
+- `/run` — Runtime state files
+- `/boot` — Boot files
+
+## 23. Common Devops Lab Workflows
+
+### A. CREATE A PROJECT DIRECTORY
+
+```bash
+cd ~
+mkdir -p DevOps/LaravelProject
+cd DevOps/LaravelProject
+pwd
+touch README.md
+ls -lah
+```
+
+### B. CREATE AND COPY A BACKUP
+
+```bash
+mkdir project
+touch project/app.txt
+cp -r project project_backup
+ls -R
+```
+
+### C. CREATE A SCRIPT AND RUN IT
+
+```bash
+nano hello.sh
+```
+
+### Script Content
+
+```bash
+#!/bin/bash
+echo "Hello from Ubuntu"
+whoami
+pwd
+```
+
+### Save The File, Then Run
+
+```bash
+chmod +x hello.sh
+./hello.sh
+```
+
+### D. FIND LARGE DIRECTORIES
+
+```bash
+df -h
+du -h --max-depth=1 ~
+du -sh ~/DevOps
+```
+
+### E. CHECK A WEB SERVER
+
+```bash
+sudo systemctl status nginx
+sudo ss -tulpn
+curl -I http://127.0.0.1
+```
+
+### F. CHECK PORT 8000
+
+```bash
+sudo ss -tulpn | grep ':8000'
+sudo lsof -i :8000
+```
+
+### G. CHECK SERVER NETWORK
+
+```bash
+hostname -I
+ip addr
+ip route
+ping -c 4 8.8.8.8
+curl -I https://example.com
+```
+
+### H. CHECK DISK AND MEMORY BEFORE DOCKER BUILDS
+
+```bash
+df -h
+free -h
+docker system df
+```
+
+### Note
+
+The last command requires Docker to be installed.
+
+## 24. Important Exam Differences
+
+- **pwd** — Current directory
+- **ls** — List directory contents
+- **cd** — Change directory
+- **mkdir** — Create directory
+- **touch** — Create file or update timestamp
+- **cp** — Copy files/directories
+- **mv** — Move or rename
+- **rm** — Delete files
+- **rmdir** — Delete empty directory
+- **cat** — Display file contents
+- **less** — Read file page by page
+- **grep** — Search text
+- **find** — Search files and directories
+- **chmod** — Change permissions
+- **chown** — Change owner
+- **chgrp** — Change group
+- **sudo** — Execute with elevated privileges
+- **apt** — Manage Ubuntu packages
+- **ps** — Show processes
+- **kill** — Send a signal to a process
+- **systemctl** — Manage systemd services
+- **journalctl** — Read systemd journal logs
+- **ip addr** — Show IP addresses
+- **ip route** — Show routing information
+- **ss -tulpn** — Show listening ports
+- **df -h** — Show filesystem disk usage
+- **du -sh** — Show directory size
+- **free -h** — Show RAM usage
+- **tar** — Archive files
+- **ssh** — Remote shell connection
+- **scp** — Copy files over SSH
+- **rsync** — Synchronize files/directories
+- **crontab** — Schedule recurring tasks
+
+## 25. Safety Notes For The Lab
+
+1. Use sudo only when administrator privileges are needed.
+2. Double-check paths before using rm -r or rm -rf.
+3. Never expose private keys, passwords or application secrets.
+4. Use chmod 600 for sensitive files that only the owner should read.
+5. Do not change ownership of system directories without a reason.
+6. On AWS, check both the instance firewall and Security Group.
+7. Do not terminate processes or stop services unless necessary.
+8. Back up configuration files before editing them.
+9. Use systemctl status and journalctl to diagnose service failures.
+10. Verify commands on your own Ubuntu version because some tools
+require separate installation.
