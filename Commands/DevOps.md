@@ -15,6 +15,7 @@
 * Overall DevOps roadmap and tools for each and little explanation 
 * IAAS, PAAS, SAAS, DAAS and explore more and concept about it, providers for it and example tools as well 
 * Search about Configuration Management Tool how it works.
+* Revise all these concepts and practice scenario's as well.
 
 
 
